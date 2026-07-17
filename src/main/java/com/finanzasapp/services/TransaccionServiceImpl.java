@@ -4,7 +4,6 @@ import com.finanzasapp.dto.request.TransaccionRequest;
 import com.finanzasapp.dto.response.TransaccionResponse;
 import com.finanzasapp.models.Categoria;
 import com.finanzasapp.models.Transaccion;
-import com.finanzasapp.models.Usuario;
 import com.finanzasapp.repositories.CategoriaRepository;
 import com.finanzasapp.repositories.TransaccionRepository;
 import com.finanzasapp.repositories.UsuarioRepository;
@@ -30,101 +29,111 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Autowired
     private CategoriaRepository categoriaRepository;
 
+    // Mapeo a response
     private TransaccionResponse toResponse(Transaccion t) {
-        TransaccionResponse response = new TransaccionResponse();
-        response.setId(t.getId());
-        response.setTipo(t.getTipo());
-        response.setConcepto(t.getConcepto());
-        response.setMonto(t.getMonto());
-        response.setFecha(t.getFecha());
-        response.setNotas(t.getNotas());
-        response.setCreadoEn(t.getCreadoEn());
-        response.setActualizadoEn(t.getActualizadoEn());
+        TransaccionResponse r = new TransaccionResponse();
+        r.setId(t.getId());
+        r.setTipo(t.getTipo());
+        r.setConcepto(t.getConcepto());
+        r.setMonto(t.getMonto());
+        r.setFecha(t.getFecha());
+        r.setNotas(t.getNotas());
+        r.setCreadoEn(t.getCreadoEn());
+        r.setActualizadoEn(t.getActualizadoEn());
 
         if (t.getCategoria() != null) {
-            response.setCategoriaId(t.getCategoria().getId());
-            response.setCategoriaNombre(t.getCategoria().getNombre());
-            response.setCategoriaEmoji(t.getCategoria().getEmoji());
-            response.setCategoriaColor(t.getCategoria().getColor());
+            r.setCategoriaId(t.getCategoria().getId());
+            r.setCategoriaNombre(t.getCategoria().getNombre());
+            r.setCategoriaEmoji(t.getCategoria().getEmoji());
+            r.setCategoriaColor(t.getCategoria().getColor());
         }
 
-        return response;
+        return r;
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TransaccionResponse> listarPorUsuario(UUID usuarioId) {
         return transaccionRepository.findActivasPorUsuario(usuarioId)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TransaccionResponse> listarPorUsuarioYTipo(UUID usuarioId, String tipo) {
         return transaccionRepository.findActivasPorUsuarioYTipo(usuarioId, tipo)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TransaccionResponse> listarPorRangoFechas(UUID usuarioId, LocalDate desde, LocalDate hasta) {
         return transaccionRepository.findByUsuarioYRangoFechas(usuarioId, desde, hasta)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public TransaccionResponse obtenerPorId(UUID id) {
-        Transaccion t = transaccionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transacción no encontrada con id " + id));
-        return toResponse(t);
+        return toResponse(
+                transaccionRepository.findByIdConCategoria(id)
+                        .orElseThrow(() -> new RuntimeException("Transacción no encontrada: " + id))
+        );
     }
 
     @Override
     @Transactional
     public TransaccionResponse crear(TransaccionRequest request) {
-        Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + request.getCategoriaId()));
 
         Transaccion t = new Transaccion();
-        t.setUsuario(usuario);
-        t.setCategoria(categoria);
+        t.setUsuario(usuarioRepository.getReferenceById(request.getUsuarioId())); // solo FK, sin SELECT
+        t.setCategoria(categoria); // ya en memoria
         t.setTipo(request.getTipo());
         t.setConcepto(request.getConcepto());
         t.setMonto(request.getMonto());
         t.setFecha(request.getFecha());
         t.setNotas(request.getNotas());
 
-        return toResponse(transaccionRepository.save(t));
+        transaccionRepository.save(t);
+        return toResponse(t); // categoria ya cargada, sin SELECT extra
     }
 
     @Override
     @Transactional
     public TransaccionResponse actualizar(UUID id, TransaccionRequest request) {
-        Transaccion t = transaccionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transacción no encontrada con id " + id));
+        Transaccion t = transaccionRepository.findByIdConCategoria(id)
+                .orElseThrow(() -> new RuntimeException("Transacción no encontrada: " + id));
 
-        Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+        if (!t.getCategoria().getId().equals(request.getCategoriaId())) {
+            Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + request.getCategoriaId()));
+            t.setCategoria(categoria);
+        }
 
-        t.setCategoria(categoria);
         t.setTipo(request.getTipo());
         t.setConcepto(request.getConcepto());
         t.setMonto(request.getMonto());
         t.setFecha(request.getFecha());
         t.setNotas(request.getNotas());
 
-        return toResponse(transaccionRepository.save(t));
+        transaccionRepository.save(t);
+        return toResponse(t);
     }
 
     @Override
     @Transactional
     public TransaccionResponse eliminar(UUID id) {
         Transaccion t = transaccionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transacción no encontrada con id " + id));
+                .orElseThrow(() -> new RuntimeException("Transacción no encontrada: " + id));
+
         t.setEliminadoEn(OffsetDateTime.now());
-        return toResponse(transaccionRepository.save(t));
+        transaccionRepository.save(t);
+
+        TransaccionResponse r = new TransaccionResponse();
+        r.setId(t.getId());
+        r.setEliminadoEn(t.getEliminadoEn());
+        return r;
     }
 }

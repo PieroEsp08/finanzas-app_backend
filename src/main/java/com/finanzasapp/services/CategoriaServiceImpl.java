@@ -1,4 +1,5 @@
 package com.finanzasapp.services;
+
 import com.finanzasapp.dto.request.CategoriaRequest;
 import com.finanzasapp.dto.response.CategoriaResponse;
 import com.finanzasapp.models.Categoria;
@@ -24,45 +25,45 @@ public class CategoriaServiceImpl implements CategoriaService {
     private UsuarioRepository usuarioRepository;
 
     private CategoriaResponse toResponse(Categoria c) {
-        CategoriaResponse response = new CategoriaResponse();
-        response.setId(c.getId());
-        response.setNombre(c.getNombre());
-        response.setTipo(c.getTipo());
-        response.setEmoji(c.getEmoji());
-        response.setColor(c.getColor());
-        response.setEsDefault(c.getEsDefault());
-        response.setCreadoEn(c.getCreadoEn());
-        response.setActualizadoEn(c.getActualizadoEn());
-        return response;
+        CategoriaResponse r = new CategoriaResponse();
+        r.setId(c.getId());
+        r.setNombre(c.getNombre());
+        r.setTipo(c.getTipo());
+        r.setEmoji(c.getEmoji());
+        r.setColor(c.getColor());
+        r.setEsDefault(c.getEsDefault());
+        r.setCreadoEn(c.getCreadoEn());
+        r.setActualizadoEn(c.getActualizadoEn());
+        return r;
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CategoriaResponse> listarPorUsuario(UUID usuarioId) {
         return categoriaRepository.findActivasPorUsuario(usuarioId)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CategoriaResponse> listarPorUsuarioYTipo(UUID usuarioId, String tipo) {
         return categoriaRepository.findActivasPorUsuarioYTipo(usuarioId, tipo)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public CategoriaResponse obtenerPorId(UUID id) {
-        Categoria c = categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con id " + id));
-        return toResponse(c);
+        return toResponse(
+                categoriaRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + id))
+        );
     }
 
     @Override
     @Transactional
     public CategoriaResponse crear(CategoriaRequest request) {
-        Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Usuario usuario = usuarioRepository.getReferenceById(request.getUsuarioId());
 
         Categoria c = new Categoria();
         c.setUsuario(usuario);
@@ -79,7 +80,7 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public CategoriaResponse actualizar(UUID id, CategoriaRequest request) {
         Categoria c = categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con id " + id));
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + id));
 
         if (Boolean.TRUE.equals(c.getEsDefault())) {
             throw new RuntimeException("No se puede editar una categoría predefinida");
@@ -97,14 +98,17 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional
     public CategoriaResponse eliminar(UUID id) {
         Categoria c = categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con id " + id));
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada: " + id));
 
         if (Boolean.TRUE.equals(c.getEsDefault())) {
             throw new RuntimeException("No se puede eliminar una categoría predefinida");
         }
 
         c.setEliminadoEn(OffsetDateTime.now());
-        return toResponse(categoriaRepository.save(c));
+        categoriaRepository.save(c);
+        
+        CategoriaResponse r = new CategoriaResponse();
+        r.setId(c.getId());
+        return r;
     }
-
 }

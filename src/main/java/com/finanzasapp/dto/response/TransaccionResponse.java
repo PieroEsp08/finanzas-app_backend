@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
-
 public class TransaccionResponse {
 
     private UUID id;
@@ -15,6 +14,7 @@ public class TransaccionResponse {
     private String notas;
     private OffsetDateTime creadoEn;
     private OffsetDateTime actualizadoEn;
+    private OffsetDateTime eliminadoEn;
     private UUID categoriaId;
     private String categoriaNombre;
     private String categoriaEmoji;
@@ -44,6 +44,9 @@ public class TransaccionResponse {
     public OffsetDateTime getActualizadoEn() { return actualizadoEn; }
     public void setActualizadoEn(OffsetDateTime actualizadoEn) { this.actualizadoEn = actualizadoEn; }
 
+    public OffsetDateTime getEliminadoEn() { return eliminadoEn; } // 👈 agrega esto
+    public void setEliminadoEn(OffsetDateTime eliminadoEn) { this.eliminadoEn = eliminadoEn; } // 👈 agrega esto
+
     public UUID getCategoriaId() { return categoriaId; }
     public void setCategoriaId(UUID categoriaId) { this.categoriaId = categoriaId; }
 
@@ -55,5 +58,4 @@ public class TransaccionResponse {
 
     public String getCategoriaColor() { return categoriaColor; }
     public void setCategoriaColor(String categoriaColor) { this.categoriaColor = categoriaColor; }
-
 }

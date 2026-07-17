@@ -7,21 +7,22 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TransaccionRepository extends JpaRepository<Transaccion, UUID> {
 
-    @Query("SELECT t FROM Transaccion t " +
+    @Query("SELECT t FROM Transaccion t JOIN FETCH t.categoria " +
             "WHERE t.usuario.id = :usuarioId AND t.eliminadoEn IS NULL " +
             "ORDER BY t.fecha DESC")
     List<Transaccion> findActivasPorUsuario(@Param("usuarioId") UUID usuarioId);
 
-    @Query("SELECT t FROM Transaccion t " +
+    @Query("SELECT t FROM Transaccion t JOIN FETCH t.categoria " +
             "WHERE t.usuario.id = :usuarioId AND t.tipo = :tipo AND t.eliminadoEn IS NULL " +
             "ORDER BY t.fecha DESC")
     List<Transaccion> findActivasPorUsuarioYTipo(@Param("usuarioId") UUID usuarioId, @Param("tipo") String tipo);
 
-    @Query("SELECT t FROM Transaccion t " +
+    @Query("SELECT t FROM Transaccion t JOIN FETCH t.categoria " +
             "WHERE t.usuario.id = :usuarioId AND t.eliminadoEn IS NULL " +
             "AND t.fecha BETWEEN :desde AND :hasta " +
             "ORDER BY t.fecha DESC")
@@ -30,4 +31,6 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, UUID> 
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta);
 
+    @Query("SELECT t FROM Transaccion t JOIN FETCH t.categoria WHERE t.id = :id")
+    Optional<Transaccion> findByIdConCategoria(@Param("id") UUID id);
 }
